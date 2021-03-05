@@ -19,26 +19,27 @@ function cleanup() {
 }
 
 function cleanlog() {
-    rm ./*.log 2>/dev/null
+    rm "./.log" 2>/dev/null
+}
+
+function check() {
+    nvcc --version 1>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "error: nvcc is not installed!"
+        exit
+    fi
 }
 
 function build() {
     echo "flags: $1"
     echo "compilation issued"
-    nvcc kernel.cu -o app $1
-
-    if [ $? -ne 0 ]; then
-        echo "error in compilation! - nvcc"
-        echo "compilation terminated (failure)"
-        exit
-    else
-        echo "compilation finished (success)"
-    fi
+    nvcc kernel.cu -o app $1 2>&1 | tee -a .log
 
     echo "DONE!"
 }
 
 #-->entry
+check
 if [ "$1" == "help" ]; then
     echo ""
     echo "make.sh : the CUDA compilation makefile-replacement tool"
@@ -48,13 +49,13 @@ if [ "$1" == "help" ]; then
 
     echo "options: "
     echo "    help - display help information"
-    echo "    clean - cleans up every build file, deleting them. Does not build!"
+    echo "    clean - cleans up every build file and log, deleting them. Does not build!"
     echo "    customflags <flags> - compile with custom flags (error if <flags> is empty)"
-    echo "    defaultflags - compile with default flags - you can specify the default flags in the makesh.conf file"
-    echo "    <empty> - default behavior (cleans up, then builds)"
+    echo "    <empty> - default behavior (cleans up, then builds with default flags (specified in makesh.conf))"
     exit
 
 elif [ "$1" == "clean" ]; then
+    cleanlog
     cleanup
 
 elif [ "$1" == "customflags" ]; then
@@ -63,13 +64,11 @@ elif [ "$1" == "customflags" ]; then
         exit
     fi
     build $2
-elif [ "$1" == "defaultflags" ]; then
-    DEFAULT_FLAGS=$(<makesh.conf)
-    build "$DEFAULT_FLAGS"
-
+    
 elif [ -z "$1" ]; then 
     cleanup
-    build
+    DEFAULT_FLAGS=$(<makesh.conf)
+    build "$DEFAULT_FLAGS"
 
 else
     echo "undefined option!"
